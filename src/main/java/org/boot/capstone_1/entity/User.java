@@ -3,6 +3,8 @@ package org.boot.capstone_1.entity;
 import jakarta.persistence.*;
         import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -16,7 +18,7 @@ public class User {
     @Column(name = "users_id")
     private Long usersId;
 
-    @Column(name = "user_id", unique = true, nullable = false, length = 10)
+    @Column(name = "user_id", unique = true, nullable = false, length = 100)
     private String userId;
 
     @Column(name = "user_password", nullable = false, length = 255)
@@ -24,5 +26,8 @@ public class User {
 
     @Column(name = "user_name", nullable = false, length = 20)
     private String userName;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<UsersPlan> usersPlans;
 
 }

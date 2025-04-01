@@ -1,11 +1,12 @@
 package org.boot.capstone_1.service;
 
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.boot.capstone_1.dto.UserDTO;
 import org.boot.capstone_1.dto.RegisterResponse;
 import org.boot.capstone_1.entity.User;
 import org.boot.capstone_1.repository.UserRepository;
+import org.boot.capstone_1.security.JwtDTO;
+import org.boot.capstone_1.security.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
@@ -15,8 +16,8 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final HttpSession session;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     // 아이디 중복 확인 기능
     public boolean isUserIdExists(String userId) {
@@ -27,7 +28,7 @@ public class UserService {
     public RegisterResponse register(UserDTO userDTO) {
         // 아이디 중복 확인
         if (userRepository.existsByUserId(userDTO.getUserId())) {
-            return new RegisterResponse(false, "userId already exists.");
+            return new RegisterResponse(false, "userId already exists.", null, null);
         }
 
         // dto -> entity 로 변환
@@ -38,7 +39,13 @@ public class UserService {
 
         userRepository.save(user);
 
-        return new RegisterResponse(true, "User created.");
+
+        // JwtDTO 객체에서 accessToken 추출
+        JwtDTO jwtDTO = jwtUtil.generateToken(userDTO.getUserId());
+        String accessToken = jwtDTO.getAccessToken();  // JwtDTO에서 accessToken을 추출
+        String refreshToken = jwtDTO.getRefreshToken();
+
+        return new RegisterResponse(true, "User created.", accessToken, refreshToken);
     }
 
     // 로그인 기능
@@ -57,24 +64,21 @@ public class UserService {
             return false;
         }
 
-        session.setAttribute("currentUser", user); // 세션 저장
         return true;
     }
 
-    public UserDTO getUserDTOByUserId(String userId) {
+    public boolean deleteUser(String userId) {
         Optional<User> userOptional = userRepository.findByUserId(userId);
 
-        // Optional을 UserDTO로 변환
-        return userOptional.map(user -> new UserDTO(
-                user.getUserId(),
-                user.getUserPassword(),
-                user.getUserName()
-        )).orElse(null); // 사용자가 없으면 null 반환
+        // 사용자 없음
+        if (userOptional.isEmpty()) {
+            return false;
+        }
+
+        // 사용자 존재 시 삭제
+        userRepository.delete(userOptional.get());
+        return true;
     }
 
-    // 로그아웃 기능
-    public void logout() {
-        session.invalidate(); // 세션 종료
-    }
 
 }
