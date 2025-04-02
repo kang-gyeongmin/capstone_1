@@ -5,10 +5,12 @@ import org.boot.capstone_1.dto.*;
 import org.boot.capstone_1.security.JwtDTO;
 import org.boot.capstone_1.security.JwtUtil;
 import org.boot.capstone_1.service.UserService;
+import org.boot.capstone_1.dto.RefreshResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,6 +34,8 @@ public class AuthController {
             JwtDTO jwtDTO = jwtUtil.generateToken(userId);
             String accessToken = jwtDTO.getAccessToken();  // JwtDTO에서 accessToken을 추출
             String refreshToken = jwtDTO.getRefreshToken();
+
+            userService.updateRefreshToken(userId, refreshToken);
 
             return ResponseEntity.ok(new LoginResponse(true, "Login success.", accessToken, refreshToken));
         }
@@ -65,13 +69,19 @@ public class AuthController {
         // 회원가입 성공 시
         RegisterResponse response = userService.register(userDTO);
 
+        userService.updateRefreshToken(userDTO.getUserId(), response.getRefreshToken());
+
         return ResponseEntity.ok(response); // 200
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestHeader("Authorization") String bearerToken) {
+    public ResponseEntity<String> logout(@RequestHeader("Authorization") String accessToken) {
         // Authorization 헤더에서 Bearer 토큰을 추출
-        String token = bearerToken.substring(7);
+        String token = accessToken.substring(7);
+
+        if (!jwtUtil.validateToken(accessToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token.");
+        }
 
         // 토큰을 블랙리스트에 추가하여 로그아웃 처리
         jwtUtil.blacklistToken(token);
@@ -79,14 +89,58 @@ public class AuthController {
         return ResponseEntity.ok("Logged out successfully.");
     }
 
-    @DeleteMapping("/{userId}/delete")
-    public ResponseEntity<String> deleteUser(@PathVariable String userId) {
+    @DeleteMapping("/delete-user")
+    public ResponseEntity<String> deleteUser(@RequestHeader("Authorization") String accessToken) {
+        String userId;
+
+        if (!jwtUtil.validateToken(accessToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token.");
+        }
+        else {
+            userId = jwtUtil.extractUserId(accessToken);
+        }
+
         boolean isDeleted = userService.deleteUser(userId);
 
         if (isDeleted) {
             return ResponseEntity.ok("User deleted successfully.");
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
+        }
+    }
+
+
+    // AccessToken/RefreshToken 재발급
+    @PostMapping("/reissue-token")
+    public ResponseEntity<RefreshResponse> refresh(@RequestHeader("Authorization") String refreshToken) {
+        String userId;
+
+        try {
+            // RefreshToken에서 userId 추출
+            userId = jwtUtil.parseClaims(refreshToken).getSubject();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RefreshResponse(false, "Invalid token.", null, null));
+        }
+
+        // DB에서 저장된 RefreshToken 가져오기
+        Optional<String> storedRefreshToken = userService.getRefreshTokenByUserId(userId);
+
+        if (storedRefreshToken.isEmpty() || !storedRefreshToken.get().equals(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RefreshResponse(false, "RefreshToken does not match.", null, null));
+        }
+
+        // RefreshToken이 유효한지 확인
+        boolean isRefreshTokenValid = jwtUtil.validateToken(refreshToken);
+
+        if (isRefreshTokenValid) {
+            String newAccessToken = jwtUtil.generateAccessToken(userId);
+            return ResponseEntity.status(HttpStatus.OK).body(new RefreshResponse(true, "AccessToken has been reissued.", newAccessToken, refreshToken));
+        } else {
+            JwtDTO newTokens = jwtUtil.generateToken(userId);
+
+            userService.updateRefreshToken(userId, newTokens.getRefreshToken());
+
+            return ResponseEntity.status(HttpStatus.OK).body(new RefreshResponse(true, "Both AccessToken and RefreshToken have been reissued.", newTokens.getAccessToken(), newTokens.getRefreshToken()));
         }
     }
 

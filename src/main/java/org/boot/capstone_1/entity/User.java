@@ -27,6 +27,9 @@ public class User {
     @Column(name = "user_name", nullable = false, length = 20)
     private String userName;
 
+    @Column(name="refresh_token")
+    private String refreshToken;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<UsersPlan> usersPlans;
 

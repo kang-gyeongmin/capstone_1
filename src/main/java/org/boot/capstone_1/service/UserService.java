@@ -39,7 +39,6 @@ public class UserService {
 
         userRepository.save(user);
 
-
         // JwtDTO 객체에서 accessToken 추출
         JwtDTO jwtDTO = jwtUtil.generateToken(userDTO.getUserId());
         String accessToken = jwtDTO.getAccessToken();  // JwtDTO에서 accessToken을 추출
@@ -65,6 +64,17 @@ public class UserService {
         }
 
         return true;
+    }
+
+
+    // 로그인/ 회원가입 시 RefreshToken 저장
+    public void updateRefreshToken(String userId, String refreshToken) {
+        userRepository.updateRefreshTokenByUserId(userId, refreshToken);
+    }
+
+    // 사용자 ID로 RefreshToken 가져오기
+    public Optional<String> getRefreshTokenByUserId(String userId) {
+        return userRepository.findRefreshTokenByUserId(userId);
     }
 
     public boolean deleteUser(String userId) {
