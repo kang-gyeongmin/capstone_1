@@ -1,4 +1,4 @@
-package org.boot.capstone_1.dto;
+package org.boot.capstone_1.dto.addPlan;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,11 +9,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegisterResponse {
+// 플랜 추가 후 응답을 반환할 때 사용
+public class AddPlanResponse {
 
     private boolean success;
     private String message;
-    private String accessToken;
-    private String refreshToken;
 
 }

@@ -9,6 +9,8 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.boot.capstone_1.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.security.Key;
@@ -18,8 +20,10 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final Set<String> blacklistedTokens = new HashSet<>();
     public final Key key;
+
+    @Autowired
+    private UserService userService;
 
     // application.yml 에서 secret 값 가져와서 key 에 저장
     public JwtUtil(@Value("${jwt.secret}") String secretKey) {
@@ -60,6 +64,7 @@ public class JwtUtil {
 
         // Refresh Token 생성
         String refreshToken = Jwts.builder()
+                .setSubject(userId)
                 .setExpiration(new Date(now + REFRESH_TOKEN_EXPIRE_TIME))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -69,6 +74,7 @@ public class JwtUtil {
         log.info("Refresh Token: {}", refreshToken);
 
         return JwtDTO.builder()
+                .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -76,6 +82,18 @@ public class JwtUtil {
 
     // 토큰 정보를 검증하는 메서드
     public boolean validateToken(String token) {
+
+        if (token == null || !token.startsWith("Bearer ")) {
+            return false;
+        }
+
+        token = token.substring(7);
+
+        if (userService.isBlacklisted(token)) {
+            return false;
+        }
+
+
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
@@ -104,15 +122,17 @@ public class JwtUtil {
         }
     }
 
-    // JWT 토큰에서 userId(= subject) 문자열 추출하는 메서드
-    public String extractUserId(String token) {
-        Claims claims = parseClaims(token);
-        return claims.getSubject();
+    public Date getExpirationDate(String token) {
+        return parseClaims(token).getExpiration();
     }
 
-    // 로그아웃 시 토큰 블랙리스트에 추가
-    public void blacklistToken(String token) {
-        blacklistedTokens.add(token);
+    // JWT 토큰에서 userId(= subject) 문자열 추출하는 메서드
+    public String extractUserId(String token) {
+
+        token = token.substring(7);
+
+        Claims claims = parseClaims(token);
+        return claims.getSubject();
     }
 
 

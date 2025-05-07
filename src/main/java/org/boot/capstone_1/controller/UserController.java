@@ -1,7 +1,7 @@
 package org.boot.capstone_1.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.boot.capstone_1.dto.*;
+import org.boot.capstone_1.dto.login.CheckIdResponse;
 import org.boot.capstone_1.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

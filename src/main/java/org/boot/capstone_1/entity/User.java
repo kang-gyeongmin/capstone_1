@@ -30,7 +30,4 @@ public class User {
     @Column(name="refresh_token")
     private String refreshToken;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<UsersPlan> usersPlans;
-
 }

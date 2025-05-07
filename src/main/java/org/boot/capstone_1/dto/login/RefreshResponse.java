@@ -1,4 +1,5 @@
-package org.boot.capstone_1.dto;
+package org.boot.capstone_1.dto.login;
+
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,10 +10,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class MainResponse {
-
+public class RefreshResponse {
     private boolean success;
     private String message;
-    private UserDTO user;
-
+    private String accessToken;
+    private String refreshToken;
 }

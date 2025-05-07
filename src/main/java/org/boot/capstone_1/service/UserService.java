@@ -2,8 +2,9 @@ package org.boot.capstone_1.service;
 
 import lombok.RequiredArgsConstructor;
 import org.boot.capstone_1.dto.UserDTO;
-import org.boot.capstone_1.dto.RegisterResponse;
+import org.boot.capstone_1.dto.login.RegisterResponse;
 import org.boot.capstone_1.entity.User;
+import org.boot.capstone_1.repository.TokenBlacklistRepository;
 import org.boot.capstone_1.repository.UserRepository;
 import org.boot.capstone_1.security.JwtDTO;
 import org.boot.capstone_1.security.JwtUtil;
@@ -18,6 +19,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     // 아이디 중복 확인 기능
     public boolean isUserIdExists(String userId) {
@@ -66,9 +68,25 @@ public class UserService {
         return true;
     }
 
+    //userId로 usersId 찾기
+    public Long getUsersIdFromUserId(String userId) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("해당 유저가 존재하지 않음"));
 
-    // 로그인/ 회원가입 시 RefreshToken 저장
+        return user.getUsersId(); // users_id 값 리턴
+    }
+
+    // 로그인 && 회원가입 시 RefreshToken 저장
     public void updateRefreshToken(String userId, String refreshToken) {
+        // 'Bearer '를 제거한 토큰을 저장
+        if (refreshToken.startsWith("Bearer ")) {
+            refreshToken = refreshToken.substring(7);
+        }
+
+        if (!userRepository.existsByUserId(userId)) {
+            throw new RuntimeException("userId not found when updating refresh token");
+        }
+
         userRepository.updateRefreshTokenByUserId(userId, refreshToken);
     }
 
@@ -76,6 +94,12 @@ public class UserService {
     public Optional<String> getRefreshTokenByUserId(String userId) {
         return userRepository.findRefreshTokenByUserId(userId);
     }
+
+
+    public boolean isBlacklisted(String accessToken) {
+        return tokenBlacklistRepository.existsByToken(accessToken);
+    }
+
 
     public boolean deleteUser(String userId) {
         Optional<User> userOptional = userRepository.findByUserId(userId);

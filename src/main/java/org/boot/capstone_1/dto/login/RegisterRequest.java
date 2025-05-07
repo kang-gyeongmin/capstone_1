@@ -1,4 +1,4 @@
-package org.boot.capstone_1.dto;
+package org.boot.capstone_1.dto.login;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
